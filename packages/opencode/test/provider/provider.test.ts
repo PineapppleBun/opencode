@@ -616,6 +616,48 @@ test("model cost defaults to zero when not specified", async () => {
   })
 })
 
+test("model table metadata comes from config", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          provider: {
+            "test-provider": {
+              name: "Test Provider",
+              npm: "@ai-sdk/openai-compatible",
+              env: [],
+              models: {
+                "test-model": {
+                  name: "Test Model",
+                  vendor: "Example Labs",
+                  infra: "Example Gateway",
+                  location: "us-west-2",
+                  limit: { context: 128000, output: 4096 },
+                },
+              },
+              options: {
+                apiKey: "test-key",
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const providers = await list()
+      const model = providers[ProviderID.make("test-provider")].models["test-model"]
+      expect(model.vendor).toBe("Example Labs")
+      expect(model.infrastructure).toBe("Example Gateway")
+      expect(model.region).toBe("us-west-2")
+    },
+  })
+})
+
 test("model options are merged from existing model", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

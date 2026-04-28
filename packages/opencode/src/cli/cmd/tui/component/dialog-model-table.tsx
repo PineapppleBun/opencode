@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy } from "remeda"
@@ -8,11 +8,14 @@ import { DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import { useConnected } from "./use-connected"
-import { classifyModel } from "@tui/util/model-classify"
 
 const NAME_COL_WIDTH = 34
-const PROVIDER_COL_WIDTH = 12
-const INFRASTRUCTURE_COL_WIDTH = 14
+const METADATA_COLUMNS = [
+  { key: "vendor", label: "Vendor", width: 12 },
+  { key: "infrastructure", label: "Infra", width: 14 },
+  { key: "region", label: "Region", width: 12 },
+] as const
+const COLUMN_GAP_WIDTH = 2
 
 function pad(value: string, width: number): string {
   const clean = value ?? ""
@@ -23,22 +26,16 @@ function pad(value: string, width: number): string {
 /**
  * `/models` in table form.
  *
- * Renders a picker with three visible columns:
+ * Renders a picker with optional metadata columns:
  *
- *   Name  |  Provider  |  Infrastructure  |  Region
+ *   Name  |  Vendor  |  Infra  |  Region
  *
- * "Provider" is the vendor (who made the model, e.g. Anthropic) and
- * "Infrastructure" is how the model is reached (e.g. Bedrock, Azure, Direct),
- * and "Region" is where it runs when known. These can come from model metadata
- * in models.dev or `opencode.json(c)`, with `classifyModel()` providing
- * fallbacks from the providerID, modelID, and `model.api.npm`.
+ * Metadata comes from the model fields exposed by the provider service, which
+ * includes values configured in `opencode.json(c)`.
  *
  * Built on top of `DialogSelect` so fuzzy filter, keyboard nav, scrolling,
  * keybinds for favorites, and current-model indicator are all inherited from
- * the existing picker. Columns are aligned by pre-padding the option `title`
- * (name + provider) in monospace and letting the section category act as the
- * group header. Infrastructure goes in the `footer` slot (right-flush,
- * colored muted).
+ * the existing picker. Columns are aligned by pre-padding the option `title`.
  */
 export function DialogModelTable(props: { providerID?: string }) {
   const local = useLocal()
@@ -49,7 +46,23 @@ export function DialogModelTable(props: { providerID?: string }) {
 
   const connected = useConnected()
 
+  onMount(() => {
+    dialog.setSize("xlarge")
+  })
+
   const showExtra = createMemo(() => connected() && !props.providerID)
+  const metadataColumns = createMemo(() =>
+    METADATA_COLUMNS.filter((column) =>
+      sync.data.provider.some((provider) =>
+        Object.values(provider.models).some(
+          (model) =>
+            model.status !== "deprecated" &&
+            (props.providerID ? model.providerID === props.providerID : true) &&
+            Boolean(model[column.key]),
+        ),
+      ),
+    ),
+  )
 
   const options = createMemo(() => {
     const needle = query().trim()
@@ -62,26 +75,15 @@ export function DialogModelTable(props: { providerID?: string }) {
       if (!provider) return null
       const model = provider.models[modelID]
       if (!model) return null
-      const { vendor, infrastructure, region } = classifyModel(provider.id, {
-        id: model.id,
-        family: model.family,
-        api: model.api,
-        name: model.name,
-        vendor: model.vendor,
-        infrastructure: model.infrastructure,
-        region: model.region,
-      })
       const displayName = model.name ?? modelID
+      const columns = metadataColumns().map((column) => pad(model[column.key] ?? "", column.width))
       return {
         value: { providerID: provider.id, modelID },
-        title:
-          pad(displayName, NAME_COL_WIDTH) +
-          "  " +
-          pad(vendor, PROVIDER_COL_WIDTH) +
-          "  " +
-          pad(infrastructure, INFRASTRUCTURE_COL_WIDTH),
-        footer: region,
-        category: category === provider.name && (infrastructure === "NVIDIA" || infrastructure === "NV Inference") ? "NV Inference" : category,
+        title: [pad(displayName, NAME_COL_WIDTH), ...columns].join("  "),
+        category:
+          category === provider.name && (model.infrastructure === "NVIDIA" || model.infrastructure === "NV Inference")
+            ? "NV Inference"
+            : category,
         disabled: provider.id === "opencode" && modelID.includes("-nano"),
         onSelect: () => onSelect(provider.id, modelID),
       }
@@ -142,16 +144,12 @@ export function DialogModelTable(props: { providerID?: string }) {
     if (value) return value.name
     // Show column-header hint inline with the dialog title so users see the
     // layout even without a dedicated header row.
-    return (
-      "Select model  " +
-      pad("Name", NAME_COL_WIDTH) +
-      "  " +
-      pad("Provider", PROVIDER_COL_WIDTH) +
-      "  " +
-      pad("Infrastructure", INFRASTRUCTURE_COL_WIDTH) +
-      "  Region"
-    )
+    return "Select model  " + [pad("Name", NAME_COL_WIDTH), ...metadataColumns().map((x) => pad(x.label, x.width))].join("  ")
   })
+
+  const titleMaxWidth = createMemo(
+    () => NAME_COL_WIDTH + metadataColumns().reduce((total, column) => total + COLUMN_GAP_WIDTH + column.width, 0),
+  )
 
   function onSelect(providerID: string, modelID: string) {
     local.model.set({ providerID, modelID }, { recent: true })
@@ -191,6 +189,7 @@ export function DialogModelTable(props: { providerID?: string }) {
       onFilter={setQuery}
       flat={true}
       skipFilter={true}
+      titleMaxWidth={titleMaxWidth()}
       title={title()}
       current={local.model.current()}
     />

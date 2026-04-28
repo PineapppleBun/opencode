@@ -1333,6 +1333,7 @@ export type ProviderConfig = {
       vendor?: string
       infrastructure?: string
       region?: string
+      location?: string
       release_date?: string
       attachment?: boolean
       reasoning?: boolean

@@ -1209,8 +1209,9 @@ const layer: Layer.Layer<
               headers: mergeDeep(existingModel?.headers ?? {}, model.headers ?? {}),
               family: model.family ?? existingModel?.family ?? "",
               vendor: model.vendor ?? existingModel?.vendor,
-              infrastructure: model.infrastructure ?? existingModel?.infrastructure,
+              infrastructure: model.infra ?? model.infrastructure ?? existingModel?.infrastructure,
               region:
+                model.location ??
                 model.region ??
                 existingModel?.region ??
                 (typeof provider.options?.["region"] === "string" ? provider.options["region"] : undefined),

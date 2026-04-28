@@ -23,6 +23,7 @@ export interface DialogSelectProps<T> {
   onFilter?: (query: string) => void
   onSelect?: (option: DialogSelectOption<T>) => void
   skipFilter?: boolean
+  titleMaxWidth?: number
   keybind?: {
     keybind?: Keybind.Info
     title: string
@@ -352,6 +353,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           active={active()}
                           current={current()}
                           gutter={option.gutter}
+                          titleMaxWidth={props.titleMaxWidth}
                         />
                       </box>
                     )
@@ -408,6 +410,7 @@ function Option(props: {
   current?: boolean
   footer?: JSX.Element | string
   gutter?: JSX.Element
+  titleMaxWidth?: number
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
@@ -433,7 +436,7 @@ function Option(props: {
         wrapMode="none"
         paddingLeft={3}
       >
-        {Locale.truncate(props.title, 61)}
+        {Locale.truncate(props.title, props.titleMaxWidth ?? 61)}
         <Show when={props.description}>
           <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
         </Show>
