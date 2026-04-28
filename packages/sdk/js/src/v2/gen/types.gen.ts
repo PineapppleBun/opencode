@@ -1330,6 +1330,9 @@ export type ProviderConfig = {
       id?: string
       name?: string
       family?: string
+      vendor?: string
+      infrastructure?: string
+      region?: string
       release_date?: string
       attachment?: boolean
       reasoning?: boolean
@@ -1759,6 +1762,9 @@ export type Model = {
   }
   name: string
   family?: string
+  vendor?: string
+  infrastructure?: string
+  region?: string
   capabilities: {
     temperature: boolean
     reasoning: boolean

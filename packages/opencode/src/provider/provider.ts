@@ -877,6 +877,9 @@ export const Model = Schema.Struct({
   api: ProviderApiInfo,
   name: Schema.String,
   family: Schema.optional(Schema.String),
+  vendor: Schema.optional(Schema.String),
+  infrastructure: Schema.optional(Schema.String),
+  region: Schema.optional(Schema.String),
   capabilities: ProviderCapabilities,
   cost: ProviderCost,
   limit: ProviderLimit,
@@ -973,6 +976,9 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
     providerID: ProviderID.make(provider.id),
     name: model.name,
     family: model.family,
+    vendor: model.vendor,
+    infrastructure: model.infrastructure,
+    region: model.region,
     api: {
       id: model.id,
       url: model.provider?.api ?? provider.api ?? "",
@@ -1202,6 +1208,12 @@ const layer: Layer.Layer<
               },
               headers: mergeDeep(existingModel?.headers ?? {}, model.headers ?? {}),
               family: model.family ?? existingModel?.family ?? "",
+              vendor: model.vendor ?? existingModel?.vendor,
+              infrastructure: model.infrastructure ?? existingModel?.infrastructure,
+              region:
+                model.region ??
+                existingModel?.region ??
+                (typeof provider.options?.["region"] === "string" ? provider.options["region"] : undefined),
               release_date: model.release_date ?? existingModel?.release_date ?? "",
               variants: {},
             }
